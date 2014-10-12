@@ -1,0 +1,43 @@
+[
+    {
+        "name": "vrana/notorm",
+        "version": "dev-master",
+        "version_normalized": "9999999-dev",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/vrana/notorm.git",
+            "reference": "67996dff1fca3abf601c2678912842ae480fc4a6"
+        },
+        "dist": {
+            "type": "zip",
+            "url": "https://api.github.com/repos/vrana/notorm/zipball/67996dff1fca3abf601c2678912842ae480fc4a6",
+            "reference": "67996dff1fca3abf601c2678912842ae480fc4a6",
+            "shasum": ""
+        },
+        "time": "2014-09-15 04:51:29",
+        "type": "library",
+        "installation-source": "source",
+        "autoload": {
+            "files": [
+                "NotORM.php"
+            ]
+        },
+        "notification-url": "https://packagist.org/downloads/",
+        "license": [
+            "Apache-2.0",
+            "GPL-2.0+"
+        ],
+        "authors": [
+            {
+                "name": "Jakub Vrána",
+                "homepage": "http://www.vrana.cz/"
+            }
+        ],
+        "description": "NotORM is a PHP library for simple working with data in the database.",
+        "homepage": "http://www.notorm.com/",
+        "keywords": [
+            "database",
+            "dbal"
+        ]
+    }
+]
