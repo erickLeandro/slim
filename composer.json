@@ -1,5 +1,14 @@
 {
     "require": {
-        "vrana/notorm": "dev-master"
-    }
-}
+        "vrana/notorm": "dev-master",
+        "gabordemooij/redbean": "3.5.1",
+        "illuminate/database": "*"
+     },
+     "autoload":{
+
+     	"classmap": [
+     		"models"
+     	]
+
+     }
+}        

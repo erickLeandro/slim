@@ -1,0 +1,1 @@
+curl -i -X POST 'Content-type: application/json' -d '{"nome": "erick", "apelido": "leandro", "idade": "23"}' localhost/slimcrud/api/usuarios/new 

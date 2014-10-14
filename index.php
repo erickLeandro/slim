@@ -1,19 +1,16 @@
 <?php
-
 ini_set('display_errors', 1);
-
 session_start();
 require 'vendor/autoload.php';
 require 'Slim/Slim.php';
 
 \Slim\Slim::registerAutoloader();
 
-$app = new \Slim\Slim();
-
-$app->config(array(
-    'debug' => true,
-    'templates.path' => 'view',
+$app = new \Slim\Slim(array(
+	'debug' => true
 ));
+
+use RedBean_Facade as R;
 
 $user = 'root';
 $password = 'q1w2e3';
@@ -22,106 +19,141 @@ $dbname = 'slim';
 
 $dsn = sprintf('mysql:host=%s;dbname=%s;', $host, $dbname);
 
-$pdo = new PDO($dsn, $user, $password);
+R::setup($dsn, $user, $password);
+R::freeze(true);
 
-$notOrm = new NotOrm($pdo);
+$auth = function(){
 
-$app->get('/', function(){
+	$app = \Slim\Slim::getInstance();
+	$user = $app->request->headers->get('HTTP_USER');
+	$pass = $app->request->headers->get('HTTP_PASS');
+	$pass = sha1($pass);
 
-    echo 'hello';
+	try {
+
+		if(!R::findOne('keys', 'user=? and pass=?', array($user, $pass))) {
+
+			throw new Exception("usuario ou senha invalido");
+
+		}
+
+	} catch(Exception $e){
+
+		$app->status(401);
+		echo json_encode(array('status' => 'error', 'message' => $e->getMessage()));
+		$app->stop();
+	}
+
+};
+
+$app->get('/', function() use ($app){
+
+	echo 'Welcome Api';
+
+})->name('home');
+
+$app->group('/api', function() use ($app, $auth){
+
+	$app->group('/usuarios', function() use ($app, $auth){
+
+		$app->response->headers->set('Content-Type', 'application/json');
+
+		$app->get('/all', $auth, function() use ($app){
+			$all_users = R::find('usuarios');
+			$all = R::exportAll($all_users);
+			echo json_encode($all);	
+
+		});
+
+		$app->get('/id/:id',$auth,function($id) use ($app){
+
+			try{
+				$usuario = R::load('usuarios',$id);
+				if($usuario->id) {
+					$return = $usuario->export();
+					echo json_encode($return);
+				} 
+			}catch(Exception $e){
+				$app->status(400);
+				echo json_encode(array('status' => 'error', 'message' => $e->getMessage()));	
+			}
+		});
+
+		$app->post('/new', function() use ($app){
+
+			try{
+
+				$request = $app->request;
+				$data = json_decode($request->getBody());
+				$usuario = R::	dispense('usuarios');
+				$usuario->nome = $data->nome;	
+				$usuario->idade = $data->idade;	
+				$usuario->apelido = $data->apelido;	
+
+				if(R::store($usuario)) {
+					echo json_encode(array('status' => 'success', 'message' => 'Usuario inserido com sucesso'));
+				}
+
+			} catch(Exception $e){
+
+				$app->status(400);
+				echo json_encode(array('status' => 'error', 'message' => $e->getMessage()));	
+
+			}
+
+		});
+
+		$app->put('/update/:id', function($id) use ($app){
+
+			try{
+
+				$id = (int) $id;
+				$request = $app->request;
+				$data = json_decode($request->getBody());
+				$usuario = R::load('usuarios', $id);
+				if($usuario->id) {
+
+					$usuario->nome = $data->nome;	
+					$usuario->idade = $data->idade;	
+					$usuario->apelido = $data->apelido;	
+					R::store($usuario);
+					echo json_encode(array('status' => 'success', 'message' => 'Usuario atualizado com sucesso'));						
+
+				} 			
+
+			} catch (Exception $e) {
+
+				$app->status(400);
+				echo json_encode(array('status' => 'error', 'message' => $e->getMessage()));	
+
+			}
+
+
+		});
+
+		$app->delete('/delete/:id', function($id) use ($app){
+
+			try{
+
+				$id = (int) $id;
+				$usuario = R::load('usuarios', $id);
+				if($usuario->id){
+					R::trash($usuario);
+					echo json_encode(array('status' => 'success', 'message' => 'Usuario deletado com sucesso'));						
+				}	
+
+			} catch (Exception $e){
+				
+				$app->status(400);
+				echo json_encode(array('status' => 'error', 'message' => $e->getMessage()));	
+
+			}		
+
+		});
+
+	});
 
 });
 
-$app->get('/usuarios', function() use ($app, $notOrm){
-
-	$data['usuarios'] = $notOrm->usuarios();
-	$app->render('usuarios.php', $data);
-
-})->name('usuarios');
-
-$app->get('/nuevo/usuario', function() use ($app){
-
-	$app->render('nuevo.php');
-
-});
-
-$app->post('/nuevo/usuario', function() use ($notOrm, $app){
-
-	$nome = $app->request->post('nome');
-	$apelido = $app->request->post('apelido');
-	$idade = $app->request->post('idade');
-
-	// inserindo dados
-	$insert = $notOrm->usuarios->insert(array(
-								'nome' => $nome, 
-								'apelido' => $apelido,
-								'idade' => $idade
-							));
-
-	if($insert)
-		$app->flash('message', 'Usuario inserido correctamente');
-	else
-		$app->flash('error', 'Erro ao inserir usuário');
-
-	$app->redirect('usuario');
-
-});
-
-$app->get('/editar/:id/usuario', function($id=0) use ($notOrm, $app){
-
-	$id_usuario = (int)$id;
-
-	if(!$usuario = $notOrm->usuarios->where('id', $id)->fetch()) {
-		$app->halt(404, 'Usuario no encontrado');
-	} else {
-		$data = array(
-			'id' => $usuario['id'],
-			'apelido' => $usuario['apelido'],
-			'nome' => $usuario['nome'],
-			'idade' => $usuario['idade']
-		);	
-		$app->render('editar.php', $data); 
-
-	}	
-
-})->name('editarusuario');
-
-$app->post('/editar/:id/usuario', function($id) use ($notOrm, $app) {
-
-	$nome = $app->request->post('nome');
-	$apelido = $app->request->post('apelido');
-	$idade = $app->request->post('idade');
-
-	$usuario = $notOrm->usuarios->where('id', $id)->fetch();
-	
-	if(!$usuario) {
-		$app->flash('error', 'Ocorreu um error ao actualizar');
-	} else {
-		$app->flash('message', 'Dados actualizados com sucesso');
-		$usuario->update(array(
-			'nome' => $nome,
-			'apelido' => $apelido,
-			'idade' => $idade
-		));
-	}	
-
-	$redirection = $app->urlFor('editarusuario', array('id' => $id));
-
-	$app->redirect($redirection);
-
-});
-
-$app->get('/borrar/:id/usuario', function($id) use($notOrm, $app) {
-
-	$id = (int) $id;
-
-	$usuario = $notOrm->usuarios->where('id', $id)->fetch();
-	
-	if($usuario) {
-		$usuario->delete();
-		$app->redirect($app->urlFor('usuarios'));
-	}	
-
-});
 
 $app->run();
